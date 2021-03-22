@@ -1,59 +1,59 @@
 import 'dart:math';
-import 'dart:ui';
 
-import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
+import 'package:flame/gestures.dart';
 import 'package:flutter/gestures.dart';
+import 'package:no_name_game/components/bg.dart';
+import 'package:no_name_game/components/fly.dart';
+import 'package:no_name_game/components/fps_counter.dart';
 
-import 'components/fly.dart';
-
-class MainGame extends Game {
-  Size screenSize;
-  List<Fly> flies;
-  double tileSize;
-  Random rnd;
-
-  MainGame() {
-    initialize();
-  }
-
-  void initialize() async {
-    flies = <Fly>[];
-    rnd = Random();
-    resize(await Flame.util.initialDimensions());
-    spawnFly();
+class MainGame extends BaseGame with TapDetector {
+  late List<Fly> flies;
+  final rng = Random();
+  @override
+  Future<void> onLoad() {
+    flies = List.generate(
+      5,
+      (index) => Fly(
+        this,
+        (rng.nextInt(size.x.toInt()).toDouble() - 50).clamp(0, size.x),
+        (rng.nextInt(size.y.toInt()).toDouble() - 50).clamp(0, size.y),
+      ),
+    );
+    add(Bg(this));
+    flies.forEach((element) => add(element));
+    add(FpsCounter(this));
+    return super.onLoad();
   }
 
   @override
-  void render(Canvas canvas) {
-    final bgRect = Rect.fromLTWH(0, 0, screenSize.width, screenSize.height);
-    final bgPaint = Paint()..color = Color(0xff576574);
-    canvas.drawRect(bgRect, bgPaint);
-    flies.forEach((Fly fly) => fly.render(canvas));
-  }
-
-  @override
-  void update(double t) {
-    flies.forEach((Fly fly) => fly.update(t));
-  }
-
-  @override
-  void resize(Size size) {
-    screenSize = size;
-    tileSize = screenSize.width / 9;
-  }
-
-  void onTapDown(TapDownDetails d) {
-    flies.forEach((Fly fly) {
-      if (fly.flyRect.contains(d.globalPosition)) {
-        fly.onTapDown();
+  void onTapDown(TapDownDetails details) {
+    flies.forEach((element) {
+      if (element.flyRect.contains(details.globalPosition)) {
+        element.onTapDown();
       }
     });
   }
 
-  void spawnFly() {
-    final x = rnd.nextDouble() * (screenSize.width - tileSize);
-    final y = rnd.nextDouble() * (screenSize.height - tileSize);
-    flies.add(Fly(this, x, y));
+  @override
+  void update(double dt) {
+    final fliesToBeRemoved = <Fly>[];
+    for (final fly in flies) {
+      if (fly.isOffScreen) {
+        fliesToBeRemoved.add(fly);
+      }
+    }
+    for (var fly in fliesToBeRemoved) {
+      remove(fly);
+      flies.removeWhere((element) => element == fly);
+      final newFly = Fly(
+        this,
+        (rng.nextInt(size.x.toInt()).toDouble() - 50).clamp(0, size.x),
+        (rng.nextInt(size.y.toInt()).toDouble() - 50).clamp(0, size.y),
+      );
+      flies.add(newFly);
+      add(newFly);
+    }
+    super.update(dt);
   }
 }
